@@ -400,6 +400,20 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
         body.buf.insert(body.buf.end(), blob.begin(), blob.end());
     }
 
+    // Gameplay loops (trailing, optional; readers unaware of loops simply
+    // ignore the extra bytes). Each loop references its pattern by index into
+    // `inputs`, which for a stored macro is the flat expanded base; the bot's
+    // expandLoopsInto handles both flat and deduplicated input arrays.
+    body.putvar(macro.loops.size());
+    for (auto& loop : macro.loops) {
+        body.putvar(loop.startFrame);
+        body.putvar(loop.patternLen);
+        body.putvar(loop.repeatCount);
+        body.putvar(loop.delayBetweenRepeats);
+        body.putvar(loop.inputStart);
+        body.putvar(loop.inputEnd);
+    }
+
     // ── PASS 3: Compress body with Zstd ────────────────────────────────
     std::vector<uint8_t> compressedBody = zstd_compress(body.buf, 19);
 
@@ -882,6 +896,27 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                 macro.visualAnchors.push_back(
                     std::vector<uint8_t>(rs.data + rs.pos, rs.data + rs.pos + (size_t)blen));
                 rs.pos += (size_t)blen;
+            }
+        }
+    }
+
+    // ── Gameplay loops (trailing; absent in older files) ───────────────────
+    macro.loops.clear();
+    if (rs.pos < rs.size) {
+        uint64_t loopCount;
+        if (rs.getvar(loopCount)) {
+            for (uint64_t i = 0; i < loopCount && rs.pos < rs.size; i++) {
+                uint64_t sf, pl, rc, dl, is, ie;
+                if (!rs.getvar(sf) || !rs.getvar(pl) || !rs.getvar(rc) ||
+                    !rs.getvar(dl) || !rs.getvar(is) || !rs.getvar(ie)) break;
+                CompressedLoop loop;
+                loop.startFrame = sf;
+                loop.patternLen = (uint32_t)pl;
+                loop.repeatCount = (uint32_t)rc;
+                loop.delayBetweenRepeats = (uint32_t)dl;
+                loop.inputStart = is;
+                loop.inputEnd = ie;
+                macro.loops.push_back(loop);
             }
         }
     }

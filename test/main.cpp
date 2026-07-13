@@ -50,14 +50,28 @@ static skc::Macro synth(size_t n) {
         for (size_t k = 0; k < 12; k++) b.push_back((uint8_t)(rng() & 0xFF));
         m.visualAnchors.push_back(b);
     }
+
+    // Add a gameplay loop referencing the first two inputs (frames 0 and 4)
+    if (m.inputs.size() >= 2) {
+        skc::CompressedLoop lp;
+        lp.startFrame = m.inputs[0].frame;
+        lp.patternLen = (uint32_t)(m.inputs[1].frame - m.inputs[0].frame);
+        lp.repeatCount = 3;
+        lp.delayBetweenRepeats = 0;
+        lp.inputStart = 0;
+        lp.inputEnd = 2;
+        m.loops.push_back(lp);
+    }
     return m;
 }
 
 static bool same(const skc::Macro& a, const skc::Macro& b) {
     if (a.physics.size() != b.physics.size() ||
         a.inputs.size()  != b.inputs.size()  ||
-        a.visualAnchors.size() != b.visualAnchors.size()) return false;
+        a.visualAnchors.size() != b.visualAnchors.size() ||
+        a.loops.size() != b.loops.size()) return false;
     if (a.physics != b.physics || a.inputs != b.inputs) return false;
+    if (a.loops != b.loops) return false;
     for (size_t i = 0; i < a.visualAnchors.size(); i++)
         if (a.visualAnchors[i] != b.visualAnchors[i]) return false;
     return true;
@@ -71,9 +85,9 @@ int main(int argc, char** argv) {
     skc::Macro dec;
     CHECK(skc::skc_decompress(cr.data, dec), "decompress success");
     CHECK(same(orig, dec), "round-trip lossless");
-    printf("round-trip: %zu phys, %zu inputs, %zu anchors, %.1f%% size\n",
+    printf("round-trip: %zu phys, %zu inputs, %zu anchors, %zu loops, %.1f%% size\n",
            orig.physics.size(), orig.inputs.size(), orig.visualAnchors.size(),
-           cr.compression_ratio * 100.0);
+           orig.loops.size(), cr.compression_ratio * 100.0);
 
     // 2) Real bot-produced .skc (Rolling Ball)
     std::string path = (argc > 1) ? argv[1]
@@ -84,8 +98,9 @@ int main(int argc, char** argv) {
     } else {
         skc::Macro rb;
         CHECK(skc::skc_decompress(bytes, rb), "decode Rolling Ball.skc");
-        printf("Rolling Ball.skc: %zu phys, %zu inputs, %zu anchors\n",
-               rb.physics.size(), rb.inputs.size(), rb.visualAnchors.size());
+        printf("Rolling Ball.skc: %zu phys, %zu inputs, %zu anchors, %zu loops\n",
+               rb.physics.size(), rb.inputs.size(), rb.visualAnchors.size(),
+               rb.loops.size());
         CHECK(rb.physics.size() > 0, "non-empty physics");
         CHECK(rb.visualAnchors.size() > 0, "has visual anchors");
     }

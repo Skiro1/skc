@@ -99,8 +99,15 @@ struct CompressedLoop {
     uint64_t startFrame;
     uint32_t patternLen;
     uint32_t repeatCount;
+    uint32_t delayBetweenRepeats = 0;
     uint64_t inputStart;
     uint64_t inputEnd;
+
+    bool operator==(const CompressedLoop& o) const {
+        return startFrame == o.startFrame && patternLen == o.patternLen &&
+               repeatCount == o.repeatCount && delayBetweenRepeats == o.delayBetweenRepeats &&
+               inputStart == o.inputStart && inputEnd == o.inputEnd;
+    }
 };
 
 // ── Helper: group consecutive inputs at same frame into runs ───────────
@@ -171,11 +178,15 @@ struct Macro {
     // Visual/animation state anchors (sparse, opaque serialized blobs)
     std::vector<std::vector<uint8_t>> visualAnchors;
 
+    // Gameplay loops (drive playback repetition; stored alongside deduped inputs)
+    std::vector<CompressedLoop> loops;
+
     void clear() {
         inputs.clear(); physics.clear();
         author.clear(); description.clear(); level_name.clear();
         level_id = 0; seed = 0; tps = 240.f;
         visualAnchors.clear();
+        loops.clear();
     }
 };
 
@@ -212,7 +223,7 @@ inline bool loadSkk(const std::string& path, Macro& macro) {
     macro.physics.resize(pcount);
     f.read(reinterpret_cast<char*>(macro.physics.data()), pcount * sizeof(PhysicsFrame));
 
-    // Read loop compression metadata (v4)
+    // Read loop metadata (kept alongside deduped inputs; inputs expanded to flat)
     uint64_t loop_count = 0;
     f.read(reinterpret_cast<char*>(&loop_count), 8);
     std::vector<CompressedLoop> loops(loop_count);
@@ -220,14 +231,16 @@ inline bool loadSkk(const std::string& path, Macro& macro) {
         f.read(reinterpret_cast<char*>(&loops[(size_t)i].startFrame), 8);
         f.read(reinterpret_cast<char*>(&loops[(size_t)i].patternLen), 4);
         f.read(reinterpret_cast<char*>(&loops[(size_t)i].repeatCount), 4);
+        f.read(reinterpret_cast<char*>(&loops[(size_t)i].delayBetweenRepeats), 4);
         uint64_t inStart, inEnd;
         f.read(reinterpret_cast<char*>(&inStart), 8);
         f.read(reinterpret_cast<char*>(&inEnd), 8);
         loops[(size_t)i].inputStart = inStart;
         loops[(size_t)i].inputEnd = inEnd;
     }
+    macro.loops = loops;
 
-    // Decompress loops → flat inputs
+    // Expand deduped inputs → flat (loop metadata is preserved separately)
     if (!loops.empty())
         decompressInputs(macro.inputs, loops);
 
@@ -277,8 +290,18 @@ inline bool saveSkk(const std::string& path, const Macro& macro) {
     f.write(reinterpret_cast<const char*>(&pcount), 8);
     f.write(reinterpret_cast<const char*>(macro.physics.data()), pcount * sizeof(PhysicsFrame));
 
-    uint64_t lcount = 0;
+    // Write loop metadata (v6 layout: + delayBetweenRepeats)
+    uint64_t lcount = macro.loops.size();
     f.write(reinterpret_cast<const char*>(&lcount), 8);
+    for (auto& loop : macro.loops) {
+        f.write(reinterpret_cast<const char*>(&loop.startFrame), 8);
+        f.write(reinterpret_cast<const char*>(&loop.patternLen), 4);
+        f.write(reinterpret_cast<const char*>(&loop.repeatCount), 4);
+        f.write(reinterpret_cast<const char*>(&loop.delayBetweenRepeats), 4);
+        uint64_t inStart = loop.inputStart, inEnd = loop.inputEnd;
+        f.write(reinterpret_cast<const char*>(&inStart), 8);
+        f.write(reinterpret_cast<const char*>(&inEnd), 8);
+    }
 
     // Write visual anchor blobs (v5)
     uint64_t va_count = macro.visualAnchors.size();
