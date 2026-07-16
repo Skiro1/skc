@@ -30,6 +30,7 @@ struct WriteStream {
     void putf32(float f);
     void putf64(double d);
     void putu32(uint32_t u);
+    void putu64(uint64_t u);
 };
 
 struct ReadStream {
@@ -41,6 +42,7 @@ struct ReadStream {
     float  getf32();
     double getf64();
     uint32_t getu32();
+    uint64_t getu64();
     bool   ok() const { return pos <= size; }
 };
 
@@ -74,6 +76,27 @@ enum FieldBits : uint32_t {
     BIT_P2_SLOPE   = 25, // sparse f32
     BIT_P2_FLAGS   = 26, // sparse u32
     BIT_FRAME      = 27, // dense u64 (varint deltas, replaces baseFrame+i)
+    // Camera state (v6) — mirrors PhysicsFrame camera fields
+    BIT_CAM_ZOOM          = 28,
+    BIT_CAM_TARGET_ZOOM   = 29,
+    BIT_CAM_OFFSET_X      = 30,
+    BIT_CAM_OFFSET_Y      = 31,
+    BIT_CAM_ANGLE         = 32,
+    BIT_CAM_TARGET_ANGLE  = 33,
+    BIT_CAM_POS_X         = 34,
+    BIT_CAM_POS_Y         = 35,
+    BIT_CAM_POS2_X        = 36,
+    BIT_CAM_POS2_Y        = 37,
+    BIT_CAM_STEP_DIFF_X   = 38,
+    BIT_CAM_STEP_DIFF_Y   = 39,
+    BIT_CAM_FLIP          = 40,
+    BIT_CAM_WIDTH_OFFSET  = 41,
+    BIT_CAM_HEIGHT_OFFSET = 42,
+    BIT_CAM_UNZOOMED_H    = 43,
+    BIT_CAM_TARGET_H      = 44,
+    BIT_CAM_WIDTH         = 45,
+    BIT_CAM_HEIGHT        = 46,
+    BIT_CAM_UNZOOMED_X    = 47,
 };
 
 } // namespace skc

@@ -62,7 +62,7 @@ static int cmdInfo(const std::string& in) {
     if (data.size() >= 4 && memcmp(data.data(), "SKC3", 4) == 0) {
         skc::Macro m;
         if (!skc::skc_decompress(data, m)) { printf("error: invalid .skc body\n"); return 1; }
-        printf("format: .skc (SKC3 v5)\n");
+        printf("format: .skc (SKC3 v6)\n");
         printMacro("macro", m);
     } else if (data.size() >= 4 && memcmp(data.data(), "SKKB", 4) == 0) {
         skc::Macro m;

@@ -3,13 +3,20 @@
 `skc` is a small C++ library and CLI for the **SKK** / **SKC** replay-macro
 formats used by the **skkBot** Geode mod for Geometry Dash.
 
-* **`.skk`** — uncompressed native macro (magic `SKKB`, version 5).
-* **`.skc`** — compressed, lossless macro (magic `SKC3`, version 5, Zstd).
+* **`.skk`** — uncompressed native macro (magic `SKKB`, version 7).
+* **`.skc`** — compressed, lossless macro (magic `SKC3`, version 6, Zstd).
 
 Both formats store per-frame player **physics** (`PhysicsFrame`), discrete
 **inputs** (`Input`), level metadata, and sparse **visual/animation state
 anchors** (`visualAnchors`) used to faithfully reproduce robot/spider/dash/glow
 visuals during playback.
+
+As of **SKK v7 / SKC v6**, `PhysicsFrame` also captures the full **camera
+state** per frame (zoom, target zoom, offset, angle, target angle, camera
+position, secondary camera position, camera step diff, flip, and the various
+width/height offsets). GD drives the camera itself, so a plain level reset does
+not restore the camera/trigger state from a prior run — replaying these values
+every frame keeps the view on the recorded path on later playback attempts.
 
 ---
 
@@ -95,7 +102,7 @@ Key symbols:
 * `skc::Macro` — container: `tps`, `inputs`, `physics`, `visualAnchors`, metadata.
 * `skc::loadSkk(path, macro)` / `skc::saveSkk(path, macro)` — native `.skk` I/O.
 * `skc::skc_compress_v4(macro)` — returns `SKCCompressResult { data, compression_ratio }`.
-* `skc::skc_decompress(bytes, macro)` — decodes both v4 and v5 `.skc`.
+* `skc::skc_decompress(bytes, macro)` — decodes v6 `.skc` (camera state).
 
 Link your target against `libskc` and add `src/codec.cpp` + `src/zstd_wrapper.cpp`
 to the sources (or compile the `.cpp` files directly — `libskc` is `INTERFACE`).
@@ -107,12 +114,12 @@ to the sources (or compile the `.cpp` files directly — `libskc` is `INTERFACE`
 All multi-byte integers are **little-endian**. Strings are encoded as a
 varint byte-length followed by UTF-8 bytes.
 
-### `.skk` (magic `SKKB` = `0x424B4B53`, version `5`)
+### `.skk` (magic `SKKB` = `0x424B4B53`, version `7`)
 
 | field | type |
 | --- | --- |
 | magic | `uint32` `0x424B4B53` |
-| version | `uint32` = 5 |
+| version | `uint32` = 7 |
 | tps | `float32` |
 | author | string |
 | description | string |
@@ -124,6 +131,10 @@ varint byte-length followed by UTF-8 bytes.
 | physics_count | `uint64` |
 | physics | `PhysicsFrame[physics_count]` (raw struct) |
 | loop_count | `uint64` (= 0 in v5; loop compression removed) |
+
+> **v7** extends `PhysicsFrame` with 21 camera-state fields appended after the
+> dash-vector fields (see `include/skc/format.hpp`, the `Camera state (v7)`
+> block). Old `.skk` files (v ≤ 6) are **not** readable — re-record macros.
 | anchor_count | `uint64` |
 | anchors | `anchor_count` × (`uint64` length + `length` opaque bytes) |
 
@@ -136,14 +147,14 @@ Each visual anchor is an opaque blob produced by serializing the full
 on vehicle changes). It is decoder-agnostic: a reader that does not understand
 the blob can ignore it.
 
-### `.skc` (magic `SKC3`, version `5`)
+### `.skc` (magic `SKC3`, version `6`)
 
 Container (uncompressed):
 
 | field | type |
 | --- | --- |
 | magic | 4 bytes `"SKC3"` |
-| version | `uint32` = 5 |
+| version | `uint32` = 6 |
 | flags | `uint32` (bit 0 = Zstd, bit 1 = XOR-scrambled) |
 | level_id | varint |
 | seed | varint |
@@ -163,16 +174,23 @@ Decompressed body:
    * bit 3: `player2`
    * bit 4: `down`
 3. **physics chunks**: `chunk_count` chunks of `chunk_size` frames (last chunk
-   may be shorter). Each chunk begins with a `uint32` **field mask**
-   (`FieldBits` in `codec.hpp`) selecting which fields are present. Fields use
-   varint frame deltas and **predictive XOR-delta** coding (value = prediction +
-   `unzigzag(delta)`, prediction = `2·prev − prevprev`) for dense floats/doubles;
-   sparse fields (gravity, vehicle size, speed, platformer velocity, rotation
-   speed, slope rotation, land time, flags) store only changed frames. Player 2
-   fields mirror player 1 when the dual-mode flag is set. Dash-vector fields
-   (`p1_dash_*`, `p2_dash_*`) are stored as sparse doubles.
-4. **visual anchors**: varint `anchor_count`, then per anchor a varint length +
-   opaque bytes (same blobs as in `.skk`).
+    may be shorter). Each chunk begins with a `uint64` **field mask**
+    (`FieldBits` in `codec.hpp`) selecting which fields are present. Fields use
+    varint frame deltas and **predictive XOR-delta** coding (value = prediction +
+    `unzigzag(delta)`, prediction = `2·prev − prevprev`) for dense floats/doubles;
+    sparse fields (gravity, vehicle size, speed, platformer velocity, rotation
+    speed, slope rotation, land time, flags) store only changed frames. Player 2
+    fields mirror player 1 when the dual-mode flag is set. Dash-vector fields
+    (`p1_dash_*`, `p2_dash_*`) are stored as sparse doubles.
+
+    **v6** adds 21 camera-state bits (`BIT_CAM_*`, `FieldBits` 28–47) written as
+    sparse floats. Because there are now more than 32 field bits, the mask is a
+    `uint64` (written as 8 little-endian bytes) instead of the old `uint32`.
+ 4. **visual anchors**: varint `anchor_count`, then per anchor a varint length +
+    opaque bytes (same blobs as in `.skk`).
+
+> **v6 is not backward compatible** with v5 `.skc` files (64-bit mask + camera
+> streams). Re-compress from a v7 `.skk`.
 
 Because every field is delta-coded and re-decoded deterministically, `.skc` ↔
 `.skk` conversion is **lossless** (verified by `skcconv verify`).

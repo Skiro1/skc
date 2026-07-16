@@ -25,6 +25,9 @@ void WriteStream::putf64(double d) {
 void WriteStream::putu32(uint32_t u) {
     buf.insert(buf.end(), (uint8_t*)&u, (uint8_t*)&u + 4);
 }
+void WriteStream::putu64(uint64_t u) {
+    buf.insert(buf.end(), (uint8_t*)&u, (uint8_t*)&u + 8);
+}
 
 // ─── ReadStream ───────────────────────────────────────────────────────
 bool ReadStream::getvar(uint64_t& v) {
@@ -44,6 +47,10 @@ double ReadStream::getf64() {
 uint32_t ReadStream::getu32() {
     if (pos + 4 > size) { pos = size; return 0; }
     uint32_t u; memcpy(&u, data + pos, 4); pos += 4; return u;
+}
+uint64_t ReadStream::getu64() {
+    if (pos + 8 > size) { pos = size; return 0; }
+    uint64_t u; memcpy(&u, data + pos, 8); pos += 8; return u;
 }
 
 // ─── Float delta helpers (lossless: store uint32 XOR delta) ───────────
@@ -125,44 +132,65 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
             return false;
         };
 
-        uint32_t fieldMask = 0;
+        uint64_t fieldMask = 0;
         // Frame: always written (dense varint deltas)
-        fieldMask |= 1u << BIT_FRAME;
-        if (differs(&PhysicsFrame::p1_x))                          fieldMask |= 1u << BIT_P1_X;
-        if (differs(&PhysicsFrame::p1_y))                          fieldMask |= 1u << BIT_P1_Y;
-        if (differs(&PhysicsFrame::p1_y_velocity))                 fieldMask |= 1u << BIT_P1_YV;
-        if (differs(&PhysicsFrame::p1_rotation))                   fieldMask |= 1u << BIT_P1_ROT;
-        if (differs(&PhysicsFrame::p1_fall_speed))                 fieldMask |= 1u << BIT_P1_FALL;
-        if (differs(&PhysicsFrame::p1_gravity))                    fieldMask |= 1u << BIT_P1_GRAVITY;
-        if (differs(&PhysicsFrame::p1_vehicle_size))               fieldMask |= 1u << BIT_P1_VSIZE;
-        if (differs(&PhysicsFrame::p1_player_speed))               fieldMask |= 1u << BIT_P1_SPEED;
-        if (differs(&PhysicsFrame::p1_platformer_x_velocity))      fieldMask |= 1u << BIT_P1_PLAT_XV;
-        if (differs(&PhysicsFrame::p1_rotation_speed))             fieldMask |= 1u << BIT_P1_ROT_SPD;
-        if (differs(&PhysicsFrame::p1_slope_rotation))             fieldMask |= 1u << BIT_P1_SLOPE;
-        if (differs(&PhysicsFrame::p1_last_land_time))             fieldMask |= 1u << BIT_P1_LAND_T;
-        if (differs(&PhysicsFrame::p1_flags))                      fieldMask |= 1u << BIT_P1_FLAGS;
-        if (differs(&PhysicsFrame::p2_x))                          fieldMask |= 1u << BIT_P2_X;
-        if (differs(&PhysicsFrame::p2_y))                          fieldMask |= 1u << BIT_P2_Y;
-        if (differs(&PhysicsFrame::p2_y_velocity))                 fieldMask |= 1u << BIT_P2_YV;
-        if (differs(&PhysicsFrame::p2_rotation))                   fieldMask |= 1u << BIT_P2_ROT;
-        if (differs(&PhysicsFrame::p2_platformer_x_velocity))      fieldMask |= 1u << BIT_P2_PLAT_XV;
-        if (differs(&PhysicsFrame::p2_rotation_speed))             fieldMask |= 1u << BIT_P2_ROT_SPD;
-        if (differs(&PhysicsFrame::p2_gravity))                    fieldMask |= 1u << BIT_P2_GRAVITY;
-        if (differs(&PhysicsFrame::p2_vehicle_size))               fieldMask |= 1u << BIT_P2_VSIZE;
-        if (differs(&PhysicsFrame::p2_player_speed))               fieldMask |= 1u << BIT_P2_SPEED;
-        if (differs(&PhysicsFrame::p2_fall_speed))                 fieldMask |= 1u << BIT_P2_FALL;
-        if (differs(&PhysicsFrame::p2_last_land_time))             fieldMask |= 1u << BIT_P2_LAND_T;
-        if (differs(&PhysicsFrame::p2_slope_rotation))             fieldMask |= 1u << BIT_P2_SLOPE;
-        if (differs(&PhysicsFrame::p2_flags))                      fieldMask |= 1u << BIT_P2_FLAGS;
+        fieldMask |= 1ull << BIT_FRAME;
+        if (differs(&PhysicsFrame::p1_x))                          fieldMask |= 1ull << BIT_P1_X;
+        if (differs(&PhysicsFrame::p1_y))                          fieldMask |= 1ull << BIT_P1_Y;
+        if (differs(&PhysicsFrame::p1_y_velocity))                 fieldMask |= 1ull << BIT_P1_YV;
+        if (differs(&PhysicsFrame::p1_rotation))                   fieldMask |= 1ull << BIT_P1_ROT;
+        if (differs(&PhysicsFrame::p1_fall_speed))                 fieldMask |= 1ull << BIT_P1_FALL;
+        if (differs(&PhysicsFrame::p1_gravity))                    fieldMask |= 1ull << BIT_P1_GRAVITY;
+        if (differs(&PhysicsFrame::p1_vehicle_size))               fieldMask |= 1ull << BIT_P1_VSIZE;
+        if (differs(&PhysicsFrame::p1_player_speed))               fieldMask |= 1ull << BIT_P1_SPEED;
+        if (differs(&PhysicsFrame::p1_platformer_x_velocity))      fieldMask |= 1ull << BIT_P1_PLAT_XV;
+        if (differs(&PhysicsFrame::p1_rotation_speed))             fieldMask |= 1ull << BIT_P1_ROT_SPD;
+        if (differs(&PhysicsFrame::p1_slope_rotation))             fieldMask |= 1ull << BIT_P1_SLOPE;
+        if (differs(&PhysicsFrame::p1_last_land_time))             fieldMask |= 1ull << BIT_P1_LAND_T;
+        if (differs(&PhysicsFrame::p1_flags))                      fieldMask |= 1ull << BIT_P1_FLAGS;
+        if (differs(&PhysicsFrame::p2_x))                          fieldMask |= 1ull << BIT_P2_X;
+        if (differs(&PhysicsFrame::p2_y))                          fieldMask |= 1ull << BIT_P2_Y;
+        if (differs(&PhysicsFrame::p2_y_velocity))                 fieldMask |= 1ull << BIT_P2_YV;
+        if (differs(&PhysicsFrame::p2_rotation))                   fieldMask |= 1ull << BIT_P2_ROT;
+        if (differs(&PhysicsFrame::p2_platformer_x_velocity))      fieldMask |= 1ull << BIT_P2_PLAT_XV;
+        if (differs(&PhysicsFrame::p2_rotation_speed))             fieldMask |= 1ull << BIT_P2_ROT_SPD;
+        if (differs(&PhysicsFrame::p2_gravity))                    fieldMask |= 1ull << BIT_P2_GRAVITY;
+        if (differs(&PhysicsFrame::p2_vehicle_size))               fieldMask |= 1ull << BIT_P2_VSIZE;
+        if (differs(&PhysicsFrame::p2_player_speed))               fieldMask |= 1ull << BIT_P2_SPEED;
+        if (differs(&PhysicsFrame::p2_fall_speed))                 fieldMask |= 1ull << BIT_P2_FALL;
+        if (differs(&PhysicsFrame::p2_last_land_time))             fieldMask |= 1ull << BIT_P2_LAND_T;
+        if (differs(&PhysicsFrame::p2_slope_rotation))             fieldMask |= 1ull << BIT_P2_SLOPE;
+        if (differs(&PhysicsFrame::p2_flags))                      fieldMask |= 1ull << BIT_P2_FLAGS;
+        // Camera state (v6): set bits when any camera field differs
+        if (differs(&PhysicsFrame::cam_zoom))                    fieldMask |= 1ull << BIT_CAM_ZOOM;
+        if (differs(&PhysicsFrame::cam_target_zoom))             fieldMask |= 1ull << BIT_CAM_TARGET_ZOOM;
+        if (differs(&PhysicsFrame::cam_offset_x))                fieldMask |= 1ull << BIT_CAM_OFFSET_X;
+        if (differs(&PhysicsFrame::cam_offset_y))                fieldMask |= 1ull << BIT_CAM_OFFSET_Y;
+        if (differs(&PhysicsFrame::cam_angle))                   fieldMask |= 1ull << BIT_CAM_ANGLE;
+        if (differs(&PhysicsFrame::cam_target_angle))            fieldMask |= 1ull << BIT_CAM_TARGET_ANGLE;
+        if (differs(&PhysicsFrame::cam_pos_x))                   fieldMask |= 1ull << BIT_CAM_POS_X;
+        if (differs(&PhysicsFrame::cam_pos_y))                   fieldMask |= 1ull << BIT_CAM_POS_Y;
+        if (differs(&PhysicsFrame::cam_pos2_x))                  fieldMask |= 1ull << BIT_CAM_POS2_X;
+        if (differs(&PhysicsFrame::cam_pos2_y))                  fieldMask |= 1ull << BIT_CAM_POS2_Y;
+        if (differs(&PhysicsFrame::cam_step_diff_x))             fieldMask |= 1ull << BIT_CAM_STEP_DIFF_X;
+        if (differs(&PhysicsFrame::cam_step_diff_y))             fieldMask |= 1ull << BIT_CAM_STEP_DIFF_Y;
+        if (differs(&PhysicsFrame::cam_flip))                    fieldMask |= 1ull << BIT_CAM_FLIP;
+        if (differs(&PhysicsFrame::cam_width_offset))            fieldMask |= 1ull << BIT_CAM_WIDTH_OFFSET;
+        if (differs(&PhysicsFrame::cam_height_offset))           fieldMask |= 1ull << BIT_CAM_HEIGHT_OFFSET;
+        if (differs(&PhysicsFrame::cam_unzoomed_height_offset))  fieldMask |= 1ull << BIT_CAM_UNZOOMED_H;
+        if (differs(&PhysicsFrame::cam_target_height_offset))    fieldMask |= 1ull << BIT_CAM_TARGET_H;
+        if (differs(&PhysicsFrame::cam_width))                   fieldMask |= 1ull << BIT_CAM_WIDTH;
+        if (differs(&PhysicsFrame::cam_height))                  fieldMask |= 1ull << BIT_CAM_HEIGHT;
+        if (differs(&PhysicsFrame::cam_unzoomed_x))              fieldMask |= 1ull << BIT_CAM_UNZOOMED_X;
         // BIT_P2_PRESENT: set if any P2 field differs
-        if (fieldMask & ((1u << BIT_P2_X) | (1u << BIT_P2_Y) | (1u << BIT_P2_YV) |
-                         (1u << BIT_P2_ROT) | (1u << BIT_P2_PLAT_XV) | (1u << BIT_P2_ROT_SPD) |
-                         (1u << BIT_P2_GRAVITY) | (1u << BIT_P2_VSIZE) | (1u << BIT_P2_SPEED) |
-                         (1u << BIT_P2_FALL) | (1u << BIT_P2_LAND_T) | (1u << BIT_P2_SLOPE) |
-                         (1u << BIT_P2_FLAGS)))
-            fieldMask |= 1u << BIT_P2_PRESENT;
+        if (fieldMask & ((1ull << BIT_P2_X) | (1ull << BIT_P2_Y) | (1ull << BIT_P2_YV) |
+                         (1ull << BIT_P2_ROT) | (1ull << BIT_P2_PLAT_XV) | (1ull << BIT_P2_ROT_SPD) |
+                         (1ull << BIT_P2_GRAVITY) | (1ull << BIT_P2_VSIZE) | (1ull << BIT_P2_SPEED) |
+                         (1ull << BIT_P2_FALL) | (1ull << BIT_P2_LAND_T) | (1ull << BIT_P2_SLOPE) |
+                         (1ull << BIT_P2_FLAGS)))
+            fieldMask |= 1ull << BIT_P2_PRESENT;
 
-        ws.putu32(fieldMask);
+        ws.putu64(fieldMask);
 
         // ── Frame (dense uint64 varint deltas) ─────────────────────────
         ws.putvar(macro.physics[frameStart].frame);
@@ -188,11 +216,11 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
                 }
             }
         };
-        if (fieldMask & (1u << BIT_P1_X))
+        if (fieldMask & (1ull << BIT_P1_X))
             putDenseFloat(&PhysicsFrame::p1_x, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_Y))
+        if (fieldMask & (1ull << BIT_P1_Y))
             putDenseFloat(&PhysicsFrame::p1_y, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_YV)) {
+        if (fieldMask & (1ull << BIT_P1_YV)) {
             double v0 = macro.physics[frameStart].p1_y_velocity;
             ws.putf64(v0);
             if (framesInChunk >= 2) {
@@ -206,9 +234,9 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
                 }
             }
         }
-        if (fieldMask & (1u << BIT_P1_ROT))
+        if (fieldMask & (1ull << BIT_P1_ROT))
             putDenseFloat(&PhysicsFrame::p1_rotation, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_FALL)) {
+        if (fieldMask & (1ull << BIT_P1_FALL)) {
             double v0 = macro.physics[frameStart].p1_fall_speed;
             ws.putf64(v0);
             if (framesInChunk >= 2) {
@@ -263,23 +291,23 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
             }
         };
 
-        if (fieldMask & (1u << BIT_P1_GRAVITY))
+        if (fieldMask & (1ull << BIT_P1_GRAVITY))
             putSparseFloat(&PhysicsFrame::p1_gravity, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_VSIZE))
+        if (fieldMask & (1ull << BIT_P1_VSIZE))
             putSparseFloat(&PhysicsFrame::p1_vehicle_size, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_SPEED))
+        if (fieldMask & (1ull << BIT_P1_SPEED))
             putSparseFloat(&PhysicsFrame::p1_player_speed, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_PLAT_XV))
+        if (fieldMask & (1ull << BIT_P1_PLAT_XV))
             putSparseDouble(&PhysicsFrame::p1_platformer_x_velocity, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_ROT_SPD))
+        if (fieldMask & (1ull << BIT_P1_ROT_SPD))
             putSparseFloat(&PhysicsFrame::p1_rotation_speed, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_SLOPE))
+        if (fieldMask & (1ull << BIT_P1_SLOPE))
             putSparseFloat(&PhysicsFrame::p1_slope_rotation, frameStart, framesInChunk);
-        if (fieldMask & (1u << BIT_P1_LAND_T))
+        if (fieldMask & (1ull << BIT_P1_LAND_T))
             putSparseDouble(&PhysicsFrame::p1_last_land_time, frameStart, framesInChunk);
 
         // P1 flags (uint32 sparse)
-        if (fieldMask & (1u << BIT_P1_FLAGS)) {
+        if (fieldMask & (1ull << BIT_P1_FLAGS)) {
             uint64_t evCount = 1;
             for (uint32_t f = 1; f < framesInChunk; f++)
                 if (macro.physics[frameStart + f].p1_flags != macro.physics[frameStart + f - 1].p1_flags)
@@ -298,12 +326,12 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
         }
 
         // ── P2 ───────────────────────────────────────────────────────────
-        if (fieldMask & (1u << BIT_P2_PRESENT)) {
-            if (fieldMask & (1u << BIT_P2_X))
+        if (fieldMask & (1ull << BIT_P2_PRESENT)) {
+            if (fieldMask & (1ull << BIT_P2_X))
                 putDenseFloat(&PhysicsFrame::p2_x, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_Y))
+            if (fieldMask & (1ull << BIT_P2_Y))
                 putDenseFloat(&PhysicsFrame::p2_y, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_YV)) {
+            if (fieldMask & (1ull << BIT_P2_YV)) {
                 double v0 = macro.physics[frameStart].p2_y_velocity;
                 ws.putf64(v0);
                 if (framesInChunk >= 2) {
@@ -317,25 +345,25 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
                     }
                 }
             }
-            if (fieldMask & (1u << BIT_P2_ROT))
+            if (fieldMask & (1ull << BIT_P2_ROT))
                 putDenseFloat(&PhysicsFrame::p2_rotation, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_PLAT_XV))
+            if (fieldMask & (1ull << BIT_P2_PLAT_XV))
                 putSparseDouble(&PhysicsFrame::p2_platformer_x_velocity, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_ROT_SPD))
+            if (fieldMask & (1ull << BIT_P2_ROT_SPD))
                 putSparseFloat(&PhysicsFrame::p2_rotation_speed, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_GRAVITY))
+            if (fieldMask & (1ull << BIT_P2_GRAVITY))
                 putSparseFloat(&PhysicsFrame::p2_gravity, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_VSIZE))
+            if (fieldMask & (1ull << BIT_P2_VSIZE))
                 putSparseFloat(&PhysicsFrame::p2_vehicle_size, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_SPEED))
+            if (fieldMask & (1ull << BIT_P2_SPEED))
                 putSparseFloat(&PhysicsFrame::p2_player_speed, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_FALL))
+            if (fieldMask & (1ull << BIT_P2_FALL))
                 putSparseDouble(&PhysicsFrame::p2_fall_speed, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_LAND_T))
+            if (fieldMask & (1ull << BIT_P2_LAND_T))
                 putSparseDouble(&PhysicsFrame::p2_last_land_time, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_SLOPE))
+            if (fieldMask & (1ull << BIT_P2_SLOPE))
                 putSparseFloat(&PhysicsFrame::p2_slope_rotation, frameStart, framesInChunk);
-            if (fieldMask & (1u << BIT_P2_FLAGS)) {
+            if (fieldMask & (1ull << BIT_P2_FLAGS)) {
                 uint64_t evCount = 1;
                 for (uint32_t f = 1; f < framesInChunk; f++)
                     if (macro.physics[frameStart + f].p2_flags != macro.physics[frameStart + f - 1].p2_flags)
@@ -352,6 +380,48 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
                     fa = f;
                 }
             }
+
+            // Camera state (v6) — all floats, sparse (change rarely within a chunk)
+            if (fieldMask & (1ull << BIT_CAM_ZOOM))
+                putSparseFloat(&PhysicsFrame::cam_zoom, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_ZOOM))
+                putSparseFloat(&PhysicsFrame::cam_target_zoom, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_OFFSET_X))
+                putSparseFloat(&PhysicsFrame::cam_offset_x, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_OFFSET_Y))
+                putSparseFloat(&PhysicsFrame::cam_offset_y, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_ANGLE))
+                putSparseFloat(&PhysicsFrame::cam_angle, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_ANGLE))
+                putSparseFloat(&PhysicsFrame::cam_target_angle, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_POS_X))
+                putSparseFloat(&PhysicsFrame::cam_pos_x, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_POS_Y))
+                putSparseFloat(&PhysicsFrame::cam_pos_y, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_POS2_X))
+                putSparseFloat(&PhysicsFrame::cam_pos2_x, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_POS2_Y))
+                putSparseFloat(&PhysicsFrame::cam_pos2_y, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_STEP_DIFF_X))
+                putSparseFloat(&PhysicsFrame::cam_step_diff_x, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_STEP_DIFF_Y))
+                putSparseFloat(&PhysicsFrame::cam_step_diff_y, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_FLIP))
+                putSparseFloat(&PhysicsFrame::cam_flip, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_WIDTH_OFFSET))
+                putSparseFloat(&PhysicsFrame::cam_width_offset, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_HEIGHT_OFFSET))
+                putSparseFloat(&PhysicsFrame::cam_height_offset, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_UNZOOMED_H))
+                putSparseFloat(&PhysicsFrame::cam_unzoomed_height_offset, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_H))
+                putSparseFloat(&PhysicsFrame::cam_target_height_offset, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_WIDTH))
+                putSparseFloat(&PhysicsFrame::cam_width, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_HEIGHT))
+                putSparseFloat(&PhysicsFrame::cam_height, frameStart, framesInChunk);
+            if (fieldMask & (1ull << BIT_CAM_UNZOOMED_X))
+                putSparseFloat(&PhysicsFrame::cam_unzoomed_x, frameStart, framesInChunk);
         }
 
         return framesInChunk;
@@ -421,7 +491,7 @@ SKCCompressResult skc_compress_v4(const Macro& macro) {
     WriteStream ws;
     const char magic[] = "SKC3";
     ws.buf.insert(ws.buf.end(), magic, magic + 4);
-    ws.putu32(5); // v5: Zstd-compressed + visual anchor section
+    ws.putu32(6); // v6: Zstd-compressed + camera state + visual anchor section
     ws.putu32(SKC_FLAG_ZSTD); // flags: Zstd, no XOR
     ws.putvar((uint64_t)macro.level_id);
     ws.putvar(macro.seed);
@@ -461,7 +531,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
     rs.pos += 4; // skip magic
 
     uint32_t version = rs.getu32();
-    if (version != 5) return false; // only v5 (Zstd chunked + visual anchors) is supported
+    if (version != 6) return false; // only v6 (camera state + Zstd chunked + visual anchors) is supported
     uint32_t flags = rs.getu32();
 
     // Decompress
@@ -540,10 +610,10 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
             // ── Read field mask ──────────────────────────────────────────────
-            uint32_t fieldMask = rs.getu32();
+            uint64_t fieldMask = rs.getu64();
 
             // ── Frame (dense uint64 varint deltas) ───────────────────────────
-            if (fieldMask & (1u << BIT_FRAME)) {
+            if (fieldMask & (1ull << BIT_FRAME)) {
             uint64_t fv; if (!rs.getvar(fv)) return false;
             chunkFrames[0].frame = fv;
             for (uint32_t f = 1; f < framesInChunk; f++) {
@@ -556,7 +626,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
             // ── P1 Dense: x (predictive XOR delta) ─────────────────────────
-            if (fieldMask & (1u << BIT_P1_X)) {
+            if (fieldMask & (1ull << BIT_P1_X)) {
             float v0 = rs.getf32();
             chunkFrames[0].p1_x = v0;
             if (framesInChunk >= 2) {
@@ -575,7 +645,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
             // ── P1 Dense: y (predictive XOR delta) ─────────────────────────
-            if (fieldMask & (1u << BIT_P1_Y)) {
+            if (fieldMask & (1ull << BIT_P1_Y)) {
             float v0 = rs.getf32();
             chunkFrames[0].p1_y = v0;
             if (framesInChunk >= 2) {
@@ -594,7 +664,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
             // ── P1 Dense: y_velocity (predictive, stored as double) ──────────
-            if (fieldMask & (1u << BIT_P1_YV)) {
+            if (fieldMask & (1ull << BIT_P1_YV)) {
             double v0 = rs.getf64();
             chunkFrames[0].p1_y_velocity = v0;
             if (framesInChunk >= 2) {
@@ -613,7 +683,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
         // ── P1 Dense: rotation (predictive XOR delta) ────────────────────
-        if (fieldMask & (1u << BIT_P1_ROT)) {
+        if (fieldMask & (1ull << BIT_P1_ROT)) {
             float v0 = rs.getf32();
             chunkFrames[0].p1_rotation = v0;
             if (framesInChunk >= 2) {
@@ -632,7 +702,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
         }
 
             // ── P1 Dense: fall_speed (predictive, stored as double) ──────────
-            if (fieldMask & (1u << BIT_P1_FALL)) {
+            if (fieldMask & (1ull << BIT_P1_FALL)) {
             double v0 = rs.getf64();
             chunkFrames[0].p1_fall_speed = v0;
             if (framesInChunk >= 2) {
@@ -712,23 +782,23 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
             };
 
-            if (fieldMask & (1u << BIT_P1_GRAVITY))
+            if (fieldMask & (1ull << BIT_P1_GRAVITY))
             readSparseF32(&PhysicsFrame::p1_gravity);
-            if (fieldMask & (1u << BIT_P1_VSIZE))
+            if (fieldMask & (1ull << BIT_P1_VSIZE))
             readSparseF32(&PhysicsFrame::p1_vehicle_size);
-            if (fieldMask & (1u << BIT_P1_SPEED))
+            if (fieldMask & (1ull << BIT_P1_SPEED))
             readSparseF32(&PhysicsFrame::p1_player_speed);
-            if (fieldMask & (1u << BIT_P1_PLAT_XV))
+            if (fieldMask & (1ull << BIT_P1_PLAT_XV))
             readSparseF64(&PhysicsFrame::p1_platformer_x_velocity);
-            if (fieldMask & (1u << BIT_P1_ROT_SPD))
+            if (fieldMask & (1ull << BIT_P1_ROT_SPD))
             readSparseF32(&PhysicsFrame::p1_rotation_speed);
-            if (fieldMask & (1u << BIT_P1_SLOPE))
+            if (fieldMask & (1ull << BIT_P1_SLOPE))
             readSparseF32(&PhysicsFrame::p1_slope_rotation);
-            if (fieldMask & (1u << BIT_P1_LAND_T))
+            if (fieldMask & (1ull << BIT_P1_LAND_T))
             readSparseF64(&PhysicsFrame::p1_last_land_time);
 
             // P1 flags (uint32 sparse)
-            if (fieldMask & (1u << BIT_P1_FLAGS)) {
+            if (fieldMask & (1ull << BIT_P1_FLAGS)) {
             std::vector<bool> _sf((size_t)framesInChunk, false);
             uint64_t evCount; if (!rs.getvar(evCount)) return false;
             uint64_t frameAccum = 0;
@@ -760,8 +830,8 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
             }
 
             // ── P2 (predictive XOR delta for dense fields) ────────────────
-            if (fieldMask & (1u << BIT_P2_PRESENT)) {
-            if (fieldMask & (1u << BIT_P2_X)) {
+            if (fieldMask & (1ull << BIT_P2_PRESENT)) {
+            if (fieldMask & (1ull << BIT_P2_X)) {
                 float v0 = rs.getf32();
                 chunkFrames[0].p2_x = v0;
                 if (framesInChunk >= 2) {
@@ -777,7 +847,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                     }
                 }
             }
-            if (fieldMask & (1u << BIT_P2_Y)) {
+            if (fieldMask & (1ull << BIT_P2_Y)) {
                 float v0 = rs.getf32();
                 chunkFrames[0].p2_y = v0;
                 if (framesInChunk >= 2) {
@@ -793,7 +863,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                     }
                 }
             }
-            if (fieldMask & (1u << BIT_P2_YV)) {
+            if (fieldMask & (1ull << BIT_P2_YV)) {
                 double v0 = rs.getf64();
                 chunkFrames[0].p2_y_velocity = v0;
                 if (framesInChunk >= 2) {
@@ -810,7 +880,7 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                     }
                 }
             }
-            if (fieldMask & (1u << BIT_P2_ROT)) {
+            if (fieldMask & (1ull << BIT_P2_ROT)) {
                 float v0 = rs.getf32();
                 chunkFrames[0].p2_rotation = v0;
                 if (framesInChunk >= 2) {
@@ -826,24 +896,24 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                     }
                 }
             }
-            if (fieldMask & (1u << BIT_P2_PLAT_XV))
+            if (fieldMask & (1ull << BIT_P2_PLAT_XV))
                 readSparseF64(&PhysicsFrame::p2_platformer_x_velocity);
-            if (fieldMask & (1u << BIT_P2_ROT_SPD))
+            if (fieldMask & (1ull << BIT_P2_ROT_SPD))
                 readSparseF32(&PhysicsFrame::p2_rotation_speed);
-            if (fieldMask & (1u << BIT_P2_GRAVITY))
+            if (fieldMask & (1ull << BIT_P2_GRAVITY))
                 readSparseF32(&PhysicsFrame::p2_gravity);
-            if (fieldMask & (1u << BIT_P2_VSIZE))
+            if (fieldMask & (1ull << BIT_P2_VSIZE))
                 readSparseF32(&PhysicsFrame::p2_vehicle_size);
-            if (fieldMask & (1u << BIT_P2_SPEED))
+            if (fieldMask & (1ull << BIT_P2_SPEED))
                 readSparseF32(&PhysicsFrame::p2_player_speed);
-            if (fieldMask & (1u << BIT_P2_FALL))
+            if (fieldMask & (1ull << BIT_P2_FALL))
                 readSparseF64(&PhysicsFrame::p2_fall_speed);
-            if (fieldMask & (1u << BIT_P2_LAND_T))
+            if (fieldMask & (1ull << BIT_P2_LAND_T))
                 readSparseF64(&PhysicsFrame::p2_last_land_time);
-            if (fieldMask & (1u << BIT_P2_SLOPE))
+            if (fieldMask & (1ull << BIT_P2_SLOPE))
                 readSparseF32(&PhysicsFrame::p2_slope_rotation);
             // P2 flags
-            if (fieldMask & (1u << BIT_P2_FLAGS)) {
+            if (fieldMask & (1ull << BIT_P2_FLAGS)) {
                 std::vector<bool> _sf((size_t)framesInChunk, false);
                 uint64_t evCount; if (!rs.getvar(evCount)) return false;
                 uint64_t frameAccum = 0;
@@ -873,6 +943,48 @@ bool skc_decompress(const std::vector<uint8_t>& data, Macro& macro) {
                         chunkFrames[f].p2_flags = lastVal;
                 }
             }
+
+            // Camera state (v6)
+            if (fieldMask & (1ull << BIT_CAM_ZOOM))
+                readSparseF32(&PhysicsFrame::cam_zoom);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_ZOOM))
+                readSparseF32(&PhysicsFrame::cam_target_zoom);
+            if (fieldMask & (1ull << BIT_CAM_OFFSET_X))
+                readSparseF32(&PhysicsFrame::cam_offset_x);
+            if (fieldMask & (1ull << BIT_CAM_OFFSET_Y))
+                readSparseF32(&PhysicsFrame::cam_offset_y);
+            if (fieldMask & (1ull << BIT_CAM_ANGLE))
+                readSparseF32(&PhysicsFrame::cam_angle);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_ANGLE))
+                readSparseF32(&PhysicsFrame::cam_target_angle);
+            if (fieldMask & (1ull << BIT_CAM_POS_X))
+                readSparseF32(&PhysicsFrame::cam_pos_x);
+            if (fieldMask & (1ull << BIT_CAM_POS_Y))
+                readSparseF32(&PhysicsFrame::cam_pos_y);
+            if (fieldMask & (1ull << BIT_CAM_POS2_X))
+                readSparseF32(&PhysicsFrame::cam_pos2_x);
+            if (fieldMask & (1ull << BIT_CAM_POS2_Y))
+                readSparseF32(&PhysicsFrame::cam_pos2_y);
+            if (fieldMask & (1ull << BIT_CAM_STEP_DIFF_X))
+                readSparseF32(&PhysicsFrame::cam_step_diff_x);
+            if (fieldMask & (1ull << BIT_CAM_STEP_DIFF_Y))
+                readSparseF32(&PhysicsFrame::cam_step_diff_y);
+            if (fieldMask & (1ull << BIT_CAM_FLIP))
+                readSparseF32(&PhysicsFrame::cam_flip);
+            if (fieldMask & (1ull << BIT_CAM_WIDTH_OFFSET))
+                readSparseF32(&PhysicsFrame::cam_width_offset);
+            if (fieldMask & (1ull << BIT_CAM_HEIGHT_OFFSET))
+                readSparseF32(&PhysicsFrame::cam_height_offset);
+            if (fieldMask & (1ull << BIT_CAM_UNZOOMED_H))
+                readSparseF32(&PhysicsFrame::cam_unzoomed_height_offset);
+            if (fieldMask & (1ull << BIT_CAM_TARGET_H))
+                readSparseF32(&PhysicsFrame::cam_target_height_offset);
+            if (fieldMask & (1ull << BIT_CAM_WIDTH))
+                readSparseF32(&PhysicsFrame::cam_width);
+            if (fieldMask & (1ull << BIT_CAM_HEIGHT))
+                readSparseF32(&PhysicsFrame::cam_height);
+            if (fieldMask & (1ull << BIT_CAM_UNZOOMED_X))
+                readSparseF32(&PhysicsFrame::cam_unzoomed_x);
             }
 
             // ── Save last frame as default for next chunk ──────────────────

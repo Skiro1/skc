@@ -10,7 +10,7 @@
 namespace skc {
 
 constexpr uint32_t SKK_MAGIC   = 0x424B4B53;
-constexpr uint32_t SKK_VERSION = 5; // v5: + visual/animation state anchors (opaque blobs)
+constexpr uint32_t SKK_VERSION = 7; // v7: + camera state (zoom/offset/angle/position/flip/...) per frame
 
 enum class Button : uint8_t { Jump = 1, Left = 2, Right = 3 };
 
@@ -69,6 +69,33 @@ struct PhysicsFrame {
     double p1_dash_x = 0.0, p1_dash_y = 0.0, p1_dash_angle = 0.0, p1_dash_start_time = 0.0, p1_black_orb_related = 0.0;
     double p2_dash_x = 0.0, p2_dash_y = 0.0, p2_dash_angle = 0.0, p2_dash_start_time = 0.0, p2_black_orb_related = 0.0;
 
+    // ─── Camera state (v7) ────────────────────────────────────────────────
+    // Mirrors ToastyReplay's per-frame camera snapshot. GD drives the camera
+    // itself; after a full level reset the camera/trigger state from a prior
+    // run is NOT restored, so playback visibly desyncs the view even when the
+    // player physics match. Capturing and re-applying these every frame keeps
+    // the camera (zoom/offset/angle/position/flip) on the recorded path.
+    float cam_zoom = 1.0f;
+    float cam_target_zoom = 1.0f;
+    float cam_offset_x = 0.0f;
+    float cam_offset_y = 0.0f;
+    float cam_angle = 0.0f;
+    float cam_target_angle = 0.0f;
+    float cam_pos_x = 0.0f;
+    float cam_pos_y = 0.0f;
+    float cam_pos2_x = 0.0f;
+    float cam_pos2_y = 0.0f;
+    float cam_step_diff_x = 0.0f;
+    float cam_step_diff_y = 0.0f;
+    float cam_flip = 0.0f;
+    float cam_width_offset = 0.0f;
+    float cam_height_offset = 0.0f;
+    float cam_unzoomed_height_offset = 0.0f;
+    float cam_target_height_offset = 0.0f;
+    float cam_width = 0.0f;
+    float cam_height = 0.0f;
+    float cam_unzoomed_x = 0.0f;
+
     bool p2Exists() const { return (p2_flags & PF_DUAL_MODE) != 0; }
 
     bool operator==(const PhysicsFrame& o) const {
@@ -88,9 +115,21 @@ struct PhysicsFrame {
                p1_dash_x == o.p1_dash_x && p1_dash_y == o.p1_dash_y &&
                p1_dash_angle == o.p1_dash_angle && p1_dash_start_time == o.p1_dash_start_time &&
                p1_black_orb_related == o.p1_black_orb_related &&
-               p2_dash_x == o.p2_dash_x && p2_dash_y == o.p2_dash_y &&
-               p2_dash_angle == o.p2_dash_angle && p2_dash_start_time == o.p2_dash_start_time &&
-               p2_black_orb_related == o.p2_black_orb_related;
+                p2_dash_x == o.p2_dash_x && p2_dash_y == o.p2_dash_y &&
+                p2_dash_angle == o.p2_dash_angle && p2_dash_start_time == o.p2_dash_start_time &&
+                p2_black_orb_related == o.p2_black_orb_related &&
+                cam_zoom == o.cam_zoom && cam_target_zoom == o.cam_target_zoom &&
+                cam_offset_x == o.cam_offset_x && cam_offset_y == o.cam_offset_y &&
+                cam_angle == o.cam_angle && cam_target_angle == o.cam_target_angle &&
+                cam_pos_x == o.cam_pos_x && cam_pos_y == o.cam_pos_y &&
+                cam_pos2_x == o.cam_pos2_x && cam_pos2_y == o.cam_pos2_y &&
+                cam_step_diff_x == o.cam_step_diff_x && cam_step_diff_y == o.cam_step_diff_y &&
+                cam_flip == o.cam_flip && cam_width_offset == o.cam_width_offset &&
+                cam_height_offset == o.cam_height_offset &&
+                cam_unzoomed_height_offset == o.cam_unzoomed_height_offset &&
+                cam_target_height_offset == o.cam_target_height_offset &&
+                cam_width == o.cam_width && cam_height == o.cam_height &&
+                cam_unzoomed_x == o.cam_unzoomed_x;
     }
 };
 
