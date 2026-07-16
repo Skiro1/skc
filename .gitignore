@@ -1,0 +1,16 @@
+# Build / IDE
+build/
+out/
+.vs/
+cmake_cfg.log
+CMakeCache.txt
+CMakeFiles/
+
+# Generated artifacts
+*.exe
+*.skk
+*.skc
+
+# OS
+Thumbs.db
+Desktop.ini
